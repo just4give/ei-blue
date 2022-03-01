@@ -1,16 +1,7 @@
-# xiao_ei_data_capture
+# EI Blue - Edge Impulse Data Capture Over Bluetooth for XIAO
 
-A new Flutter project.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+![IMG_5284](https://user-images.githubusercontent.com/9275193/156100885-5e048cc5-a36a-4ce1-88da-e3d5d43fc482.PNG)
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+![IMG_5285](https://user-images.githubusercontent.com/9275193/156100948-877c1ed7-f9ff-4b41-b6e2-85e01b37421e.PNG)
