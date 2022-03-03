@@ -1,0 +1,40 @@
+{
+    "protected": {
+        "ver": "v1",
+        "alg": "HS256"
+    },
+    "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+    "payload": {
+        "device_type": "EDGE_IMPULSE_UPLOADER",
+        "interval_ms": 20,
+        "sensors": [
+            {
+                "name": "accX",
+                "units": "N/A"
+            },
+            {
+                "name": "accY",
+                "units": "N/A"
+            },
+            {
+                "name": "accZ",
+                "units": "N/A"
+            },
+            {
+                "name": "gyroX",
+                "units": "N/A"
+            },
+            {
+                "name": "gyroY",
+                "units": "N/A"
+            },
+            {
+                "name": "gyroZ",
+                "units": "N/A"
+            }
+        ],
+        "values": [
+            
+        ]
+    }
+}

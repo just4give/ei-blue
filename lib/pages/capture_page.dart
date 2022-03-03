@@ -22,6 +22,7 @@ class _CapturePageState extends State<CapturePage> {
   TextEditingController labelController = TextEditingController();
   String _label = '';
   String _duration = "1";
+  String _sensorType = "3";
 
   BluetoothDevice? device;
   BluetoothCharacteristic? rx;
@@ -30,6 +31,7 @@ class _CapturePageState extends State<CapturePage> {
   bool _hasProject = false;
   bool _found = false;
   bool _sampling = false;
+  bool _bleOn = false;
   String? _eiApiKey;
   String? _hmacKey;
 
@@ -38,22 +40,38 @@ class _CapturePageState extends State<CapturePage> {
   @override
   void initState() {
     super.initState();
+
+    if (kDebugMode) {
+      print("inside initState");
+    }
+    flutterBlue.isOn.then((value) => {
+          if (mounted)
+            {
+              setState(() {
+                _bleOn = value;
+              })
+            }
+        });
+
     flutterBlue.startScan(
-        withServices: [Guid(serviceUUID)], timeout: const Duration(seconds: 4));
+        withServices: [Guid(serviceUUID.toLowerCase())],
+        timeout: const Duration(seconds: 4),
+        allowDuplicates: false);
 
     flutterBlue.scanResults.listen((results) async {
       // do something with scan results
       for (ScanResult r in results) {
         if (r.device.name == bleName) {
+          await flutterBlue.stopScan();
           device = r.device;
-          flutterBlue.stopScan();
 
-          setState(() {
-            _found = true;
-          });
-
-          if (kDebugMode) {
-            print("Found BLE device");
+          if (mounted) {
+            setState(() {
+              _found = true;
+              if (kDebugMode) {
+                print("Found BLE device");
+              }
+            });
           }
         }
       }
@@ -62,13 +80,24 @@ class _CapturePageState extends State<CapturePage> {
     _prefs.then((SharedPreferences prefs) {
       _eiApiKey = prefs.getString('eiApiKey') ?? "";
 
-      setState(() {
-        if (_eiApiKey != "") {
-          _hasProject = true;
-        }
-        _hmacKey = prefs.getString('hmacKey') ?? "";
-      });
+      if (mounted) {
+        setState(() {
+          if (_eiApiKey != "") {
+            _hasProject = true;
+          }
+          _hmacKey = prefs.getString('hmacKey') ?? "";
+        });
+      }
     });
+  }
+
+  @override
+  void deactivate() async {
+    super.deactivate();
+    await device?.disconnect();
+    if (kDebugMode) {
+      print("inside deactivate");
+    }
   }
 
   @override
@@ -77,64 +106,93 @@ class _CapturePageState extends State<CapturePage> {
 
     return Column(
       children: [
-        if (_found && !_connected)
+        if (!_bleOn)
+          const Padding(
+            padding: EdgeInsets.all(10.0),
+            child: Text(
+              "Bluetooth is turned off. Please turn it on.",
+              style: TextStyle(fontSize: fontSizeSmall),
+            ),
+          ),
+        if (_bleOn && _found && !_connected)
           Center(
             child: ElevatedButton(
               onPressed: () async {
-                await device?.connect();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('BLE connected.')),
-                );
-                if (kDebugMode) {
-                  print("connected to BLE device");
-                }
+                try {
+                  await device?.connect();
 
-                List<BluetoothService>? services =
-                    await device?.discoverServices();
-                services?.forEach((service) async {
-                  if (service.uuid.toString() == serviceUUID) {
-                    if (kDebugMode) {
-                      print("Discovering characteristics...");
-                    }
-
-                    var characteristics = service.characteristics;
-                    for (BluetoothCharacteristic c in characteristics) {
-                      if (c.uuid.toString() == rxUUID) {
-                        if (kDebugMode) {
-                          print("Found needed RX characteristic");
-                        }
-                        rx = c;
-                        await rx?.setNotifyValue(true);
-                        rx?.value.listen((value) async {
-                          String strData = String.fromCharCodes(value);
-                          // print("value received ${strData}");
-                          if (strData == ";") {
-                            if (kDebugMode) {
-                              print(
-                                  "### Sampling data received with ${values.length} samples");
-                            }
-                            await postDataToEI(_label);
-                          } else if (strData != "") {
-                            final s = strData.split(",");
-                            values.add([
-                              double.parse(s[1]),
-                              double.parse(s[2]),
-                              double.parse(s[3])
-                            ]);
-                          }
-                        });
-                      }
-
-                      if (c.uuid.toString() == txUUID) {
-                        tx = c;
-                      }
-                    }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('BLE connected.')),
+                  );
+                  if (kDebugMode) {
+                    print("connected to BLE device");
                   }
-                });
-                setState(() {
-                  _connected = true;
-                });
-              },
+
+                  List<BluetoothService>? services =
+                      await device?.discoverServices();
+
+                  setState(() {
+                    _connected = true;
+                  });
+                  services?.forEach((service) async {
+                    if (service.uuid.toString() == serviceUUID.toLowerCase()) {
+                      if (kDebugMode) {
+                        print("Discovering characteristics...");
+                      }
+
+                      var characteristics = service.characteristics;
+                      for (BluetoothCharacteristic c in characteristics) {
+                        if (c.uuid.toString() == rxUUID.toLowerCase()) {
+                          if (kDebugMode) {
+                            print("Found needed RX characteristic");
+                          }
+                          rx = c;
+                          await rx?.setNotifyValue(true);
+                          rx?.value.listen((value) async {
+                            String strData = String.fromCharCodes(value);
+                            // print("value received ${strData}");
+                            if (strData == ";") {
+                              if (kDebugMode) {
+                                print(
+                                    "### Sampling data received with ${values.length} samples");
+                              }
+                              await postDataToEI(_label);
+                            } else if (strData != "") {
+                              final s = strData.split(",");
+
+                              if (_sensorType == "3") {
+                                values.add([
+                                  double.parse(s[1]),
+                                  double.parse(s[2]),
+                                  double.parse(s[3])
+                                ]);
+                              } else if (_sensorType == "6") {
+                                values.add([
+                                  double.parse(s[1]),
+                                  double.parse(s[2]),
+                                  double.parse(s[3]),
+                                  double.parse(s[4]),
+                                  double.parse(s[5]),
+                                  double.parse(s[6])
+                                ]);
+                              }
+                            }
+                          });
+                        }
+
+                        if (c.uuid.toString() == txUUID.toLowerCase()) {
+                          tx = c;
+                        }
+                      }
+                    }
+                  });
+                } catch (e) {
+                  flutterBlue.startScan(
+                      withServices: [Guid(serviceUUID.toLowerCase())],
+                      timeout: const Duration(seconds: 4),
+                      allowDuplicates: false);
+                }
+              }, //onPressed
               child: const Text('Connect to BLE'),
             ),
           ),
@@ -177,8 +235,39 @@ class _CapturePageState extends State<CapturePage> {
                         const Padding(
                           padding: EdgeInsets.all(10.0),
                           child: Text(
-                            "3 Axis accelerometer data captured at 50Hz.",
+                            "Accelerometer data captured at 50Hz.",
                             style: TextStyle(fontSize: fontSizeSmall),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10.0),
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                                border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(4.0)),
+                            )),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _sensorType,
+                                isDense: true,
+                                isExpanded: true,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _sensorType = newValue!;
+                                  });
+                                },
+                                items: <String>[
+                                  '3',
+                                  '6',
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text('$value axis accelerometer'),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ),
                         Padding(
@@ -276,8 +365,8 @@ class _CapturePageState extends State<CapturePage> {
     if (kDebugMode) {
       print("call EI with $_hmacKey and $_eiApiKey");
     }
-    final String response =
-        await rootBundle.loadString('assets/data/accelerometer.json');
+    final String response = await rootBundle
+        .loadString('assets/data/accelerometer${_sensorType}axis.json');
     final jsonData = await json.decode(response);
 
     var hmacSha256 = Hmac(sha256, utf8.encode(_hmacKey!)); // HMAC-SHA256
