@@ -9,7 +9,7 @@ Get EI Blue mobile app from https://github.com/just4give/ei-blue
 #include <LSM6DS3.h>
 #include <Wire.h>
 
-#define BLENAME                       "XIAO"
+#define BLENAME                       "EIBLUE"
 #define SERVICE_UUID                  "4D7D1101-EE27-40B2-836C-17505C1044D7"
 #define TX_CHAR_UUID                  "4D7D1102-EE27-40B2-836C-17505C1044D7"
 #define RX_CHAR_UUID                  "4D7D1103-EE27-40B2-836C-17505C1044D7"
